@@ -91,7 +91,7 @@ export default function Print() {
   return (
     <div style={styles.page}>
       <Head>
-        <title>夢をかなえるためのアプリ 印刷用</title>
+        <title>夢がかなうアプリ 印刷用</title>
         <link
           href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@700;900&family=Noto+Sans+JP:wght@400;500;600;700&display=swap"
           rel="stylesheet"
@@ -111,7 +111,7 @@ export default function Print() {
 
       <div style={styles.sheet}>
         <div style={styles.headerRow}>
-          <div style={styles.title}>夢をかなえるためのアプリ</div>
+          <div style={styles.title}>夢がかなうアプリ 〜夢・人生目標〜</div>
           <div style={styles.headerMeta}>
             {ageYears}歳（{now.getFullYear()}年{now.getMonth() + 1}月{now.getDate()}日 時点）
           </div>
