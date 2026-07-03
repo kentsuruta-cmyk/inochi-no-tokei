@@ -1001,7 +1001,15 @@ function TimelineCategoryRows({ cat, rows, columns, purpose, onPurposeChange, on
         return (
           <tr key={row.id}>
             <td style={styles.tdDelete}>
-              <button style={styles.rowXsmall} onClick={() => onRemoveRow(cat.key, row.id)}>
+              <button
+                style={styles.rowXsmall}
+                onClick={() => {
+                  const hasContent = row.ultimate || row.future || row.now || row.diff || row.years.some((y) => y);
+                  if (!hasContent || window.confirm('この行を削除します。入力した内容も消えますがよろしいですか？')) {
+                    onRemoveRow(cat.key, row.id);
+                  }
+                }}
+              >
                 ×
               </button>
             </td>
@@ -1139,7 +1147,7 @@ const styles = {
   thLabel: { background: '#F3F3F1', padding: '6px 8px', minWidth: 110, borderBottom: '1px solid #EBEAE5' },
   thYear: { background: '#F3F3F1', padding: '6px 6px', fontSize: 10, fontWeight: 700, borderBottom: '1px solid #EBEAE5', minWidth: 56 },
   tdGroup: { background: '#1A1A1E', color: '#fff', fontWeight: 700, fontSize: 11, padding: '6px 8px' },
-  tdGroupRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  tdGroupRow: { display: 'flex', justifyContent: 'flex-start', alignItems: 'center', gap: 10, position: 'sticky', left: 0 },
   tdPurpose: { background: '#F3F3F1', padding: '4px 8px', borderBottom: '1px solid #EBEAE5' },
   tdDelete: { padding: '4px 4px', borderBottom: '1px solid #EBEAE5', textAlign: 'center', width: 24 },
   addRowBtn: { background: '#2B5FE0', color: '#fff', border: 'none', borderRadius: 6, padding: '2px 8px', fontSize: 10, fontWeight: 700, cursor: 'pointer' },
