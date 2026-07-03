@@ -413,6 +413,22 @@ export default function Home() {
             )}
           </div>
         </div>
+
+        <div style={styles.card}>
+          <div style={styles.label}>人生のグリッド（1マス＝1年、平均寿命まで）</div>
+          <div style={styles.grid}>
+            {Array.from({ length: Math.ceil(state.lifeExpAge) }).map((_, i) => (
+              <div
+                key={i}
+                style={{
+                  ...styles.yr,
+                  background:
+                    i < Math.floor(ageYears) ? '#2B5FE0' : i === Math.floor(ageYears) ? '#1A1A1E' : '#EBEAE5',
+                }}
+              />
+            ))}
+          </div>
+        </div>
       </main>
     </div>
   );
@@ -472,4 +488,6 @@ const styles = {
   dreamCheck: { marginTop: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer' },
 
   comingSoon: { fontSize: 12, color: '#8A8A93', lineHeight: 1.6 },
+  grid: { display: 'grid', gridTemplateColumns: 'repeat(18, 1fr)', gap: 3 },
+  yr: { aspectRatio: '1', borderRadius: 2, minWidth: 0 },
 };
