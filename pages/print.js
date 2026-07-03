@@ -4,19 +4,19 @@ import Head from 'next/head';
 const CATEGORY_LABELS = {
   money: '経済・モノ・お金',
   family_private: 'プライベート・家庭',
-  work: '社会・仕事',
-  knowledge: '教養・知識',
+  work: '仕事・知識',
+  knowledge: '教養・精神',
   health: '健康',
-  mind: '心・精神',
+  mind: '人間関係',
 };
 
 const PYRAMID_ORDER = ['money', 'family_private', 'work', 'knowledge', 'health', 'mind'];
 
 const TIMELINE_CATEGORIES = [
   { key: 'health', label: '健康' },
-  { key: 'knowledge', label: '教養・知識' },
-  { key: 'mind', label: '心・精神' },
-  { key: 'work', label: '社会・仕事' },
+  { key: 'knowledge', label: '教養・精神' },
+  { key: 'mind', label: '人間関係' },
+  { key: 'work', label: '仕事・知識' },
   { key: 'family_private', label: 'プライベート・家庭' },
   { key: 'money', label: '経済・モノ・お金' },
   { key: 'forecast', label: '未来予測' },
