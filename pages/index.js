@@ -513,7 +513,7 @@ export default function Home() {
         {/* 夢手帳カード */}
         <div style={styles.notebookCard}>
           <div style={styles.notebookTitleRow}>
-            <div style={styles.notebookTitle}>夢手帳</div>
+            <div style={styles.notebookTitle}>夢をかなえるためのアプリ</div>
           </div>
           <div style={styles.notebookSub}>手帳は人生をマネジメントし、夢をかなえるツールだ。</div>
 
