@@ -71,12 +71,15 @@ export default function Print() {
   const targetRemainDays = Math.floor((targetDate - now) / 86400000);
   const targetPct = Math.min(100, (100 * (targetTotalDays - targetRemainDays)) / targetTotalDays);
 
-  // 未来年表の「今年」列（1列目）に書かれた目標を集める
+  // 未来年表の「今年」列（1列目）に書かれた目標を集める（項目名も一緒に）
   const thisYearGoals = [];
   TIMELINE_CATEGORIES.forEach((cat) => {
     (state.timeline[cat.key] || []).forEach((row) => {
+      const itemName = (row.ultimate || '').trim();
       const text = (row.years && row.years[0] ? row.years[0] : '').trim();
-      if (text) thisYearGoals.push({ category: cat.label, text });
+      if (itemName || text) {
+        thisYearGoals.push({ category: cat.label, itemName, text });
+      }
     });
   });
 
@@ -138,6 +141,8 @@ export default function Print() {
               {thisYearGoals.map((g, i) => (
                 <div key={i} style={styles.goalItem}>
                   <span style={styles.goalTag}>{g.category}</span>
+                  {g.itemName && <strong>{g.itemName}</strong>}
+                  {g.itemName && g.text ? '：' : ''}
                   {g.text}
                 </div>
               ))}
