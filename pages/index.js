@@ -419,7 +419,7 @@ export default function Home() {
   return (
     <div style={styles.body}>
       <Head>
-        <title>命の時計</title>
+        <title>夢がかなうアプリ 〜夢・人生目標〜</title>
         <link
           href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;600;700&display=swap"
           rel="stylesheet"
@@ -428,7 +428,7 @@ export default function Home() {
 
       <header style={styles.header}>
         <div>
-          <h1 style={styles.h1}>命の時計</h1>
+          <h1 style={styles.h1}>夢がかなうアプリ 〜夢・人生目標〜</h1>
           <div style={styles.sub}>
             {Math.floor(ageYears)}歳（生後 {Math.floor(ageMs / 86400000).toLocaleString()}日） ・ {status}
           </div>
@@ -510,12 +510,13 @@ export default function Home() {
           </div>
         )}
 
-        {/* 夢手帳カード */}
+        {/* 夢をかなえるためのアプリ カード */}
         <div style={styles.notebookCard}>
-          <div style={styles.notebookTitleRow}>
-            <div style={styles.notebookTitle}>夢をかなえるためのアプリ</div>
+          <div style={styles.notebookSub}>
+            GMO熊谷さんの著書に影響されて作成。
+            <br />
+            残された時間とかなえたい目標を意識して日々過ごそう。
           </div>
-          <div style={styles.notebookSub}>手帳は人生をマネジメントし、夢をかなえるツールだ。</div>
 
           {/* 人生時計 */}
           <div style={styles.sectionBlock}>
