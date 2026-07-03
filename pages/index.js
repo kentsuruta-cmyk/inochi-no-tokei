@@ -36,32 +36,11 @@ const TIMELINE_PURPOSE_PLACEHOLDER = {
   forecast: '例：法改正や社会の変化のメモ',
 };
 
-const TIMELINE_PLACEHOLDERS = {
-  health: [
-    { ultimate: '例：禁煙', future: '例：1日1箱の喫煙', now: '例：1週間に1箱', diff: '' },
-    { ultimate: '例：体重◯◯kg', future: '例：体重◯◯kg', now: '例：体重◯◯kg', diff: '例：◯kg' },
-  ],
-  knowledge: [
-    { ultimate: '例：TOEICで◯◯点', future: '例：TOEICで◯◯点', now: '例：◯◯点', diff: '' },
-    { ultimate: '例：本を出版したい', future: '例：文才ゼロ', now: '例：週1冊読む', diff: '' },
-  ],
-  mind: [
-    { ultimate: '例：あまり人に好かれない', future: '例：心理学の勉強中', now: '例：マナーの特訓', diff: '' },
-    { ultimate: '例：人生の師を見つける', future: '例：人生の師がいない', now: '例：交流会に積極参加', diff: '' },
-  ],
-  work: [
-    { ultimate: '例：自分の会社を持ちたい', future: '例：会社経営の知識ゼロ', now: '例：起業家講習に参加中', diff: '' },
-    { ultimate: '例：資格を取りたい', future: '例：経営知識・スキルゼロ', now: '例：法律の勉強中', diff: '' },
-    { ultimate: '例：人脈◯◯人', future: '例：人脈◯人', now: '例：月1回交流会参加', diff: '' },
-  ],
-  family_private: [
-    { ultimate: '例：一戸建て住宅を購入', future: '例：賃貸アパート暮らし', now: '例：住宅購入資金を貯金中', diff: '' },
-  ],
-  money: [
-    { ultimate: '例：◯◯万円の資産を持ちたい', future: '例：知識も金も土地もない', now: '例：貯金◯◯万円', diff: '' },
-    { ultimate: '例：マンションのオーナーになりたい', future: '', now: '', diff: '' },
-  ],
-  forecast: [{ ultimate: '', future: '', now: '', diff: '例：法改正や社会の変化のメモ' }],
+const GENERIC_ROW_PLACEHOLDER = {
+  ultimate: '例：禁煙、体重、TOEICなど項目名',
+  future: '例：今のままだとどうなるか',
+  now: '例：今の状態',
+  diff: '例：目標との差',
 };
 
 function blankRow() {
@@ -841,7 +820,7 @@ export default function Home() {
                     <thead>
                       <tr>
                         <th style={styles.thLabel}></th>
-                        <th style={styles.th}>究極の目標</th>
+                        <th style={styles.th}>項目</th>
                         <th style={styles.th}>将来</th>
                         <th style={styles.th}>今</th>
                         <th style={styles.th}>差</th>
@@ -998,7 +977,6 @@ export default function Home() {
 }
 
 function TimelineCategoryRows({ cat, rows, columns, purpose, onPurposeChange, onFieldChange, onYearChange, onAddRow, onRemoveRow }) {
-  const placeholders = TIMELINE_PLACEHOLDERS[cat.key] || [];
   return (
     <>
       <tr>
@@ -1022,7 +1000,7 @@ function TimelineCategoryRows({ cat, rows, columns, purpose, onPurposeChange, on
         </td>
       </tr>
       {rows.map((row, i) => {
-        const ph = placeholders[i] || { ultimate: '', future: '', now: '', diff: '' };
+        const ph = GENERIC_ROW_PLACEHOLDER;
         return (
           <tr key={row.id}>
             <td style={styles.tdDelete}>
