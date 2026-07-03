@@ -403,12 +403,13 @@ export default function Home() {
   const thisYearGoals = [];
   TIMELINE_CATEGORIES.forEach((cat) => {
     (state.timeline[cat.key] || []).forEach((row) => {
+      const itemName = (row.ultimate || '').trim();
       const goalText = (row.years[0] || '').trim();
-      if (goalText) {
+      if (itemName || goalText) {
         thisYearGoals.push({
           rowId: row.id,
           categoryLabel: cat.label,
-          rowLabel: row.label,
+          rowLabel: itemName,
           goalText,
         });
       }
@@ -923,7 +924,7 @@ export default function Home() {
                           value={todoDrafts[goal.rowId] || ''}
                           onChange={(e) => setTodoDrafts((d) => ({ ...d, [goal.rowId]: e.target.value }))}
                           onKeyDown={(e) => {
-                            if (e.key === 'Enter') addGoalTodo(goal.rowId);
+                            if (e.key === 'Enter' && !e.nativeEvent.isComposing) addGoalTodo(goal.rowId);
                           }}
                           style={{ ...styles.input, flex: 1 }}
                         />
