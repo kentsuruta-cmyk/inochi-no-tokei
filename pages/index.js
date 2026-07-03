@@ -1,11 +1,71 @@
 import { useEffect, useRef, useState } from 'react';
 import Head from 'next/head';
 
+const CATEGORY_LABELS = {
+  money: '経済・モノ・お金',
+  family_private: 'プライベート・家庭',
+  work: '社会・仕事',
+  knowledge: '教養・知識',
+  health: '健康',
+  mind: '心・精神',
+};
+
+const PYRAMID_TIERS = [
+  { tier: '結果レベル', keys: ['money'] },
+  { tier: '実現レベル', keys: ['family_private', 'work'] },
+  { tier: '基礎レベル', keys: ['knowledge', 'health', 'mind'] },
+];
+
+const TIMELINE_CATEGORIES = [
+  { key: 'health', label: '健康', defaultRows: 2 },
+  { key: 'knowledge', label: '教養・知識', defaultRows: 2 },
+  { key: 'mind', label: '心・精神', defaultRows: 2 },
+  { key: 'work', label: '社会・仕事', defaultRows: 3 },
+  { key: 'family_private', label: 'プライベート・家庭', defaultRows: 1 },
+  { key: 'money', label: '経済・モノ・お金', defaultRows: 2 },
+  { key: 'forecast', label: '未来予測', defaultRows: 1 },
+];
+
+function blankRow() {
+  return {
+    id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
+    label: '',
+    ultimate: '',
+    future: '',
+    now: '',
+    diff: '',
+    years: Array(10).fill(''),
+  };
+}
+
+function defaultTimeline() {
+  const t = {};
+  TIMELINE_CATEGORIES.forEach((c) => {
+    t[c.key] = Array.from({ length: c.defaultRows }).map(() => blankRow());
+  });
+  return t;
+}
+
 const DEFAULT_STATE = {
   birthDate: '1980-08-31',
   lifeExpAge: 81.09,
   targetAge: 100,
   dreams: [],
+  family: {
+    wife: '1978-12-08',
+    daughter1: '2010-04-29',
+    daughter2: '2015-08-18',
+  },
+  timeline: defaultTimeline(),
+  pyramidGoals: {
+    money: '',
+    family_private: '',
+    work: '',
+    knowledge: '',
+    health: '',
+    mind: '',
+  },
+  todosByGoal: {},
 };
 
 function addYears(date, years) {
@@ -30,6 +90,21 @@ function fmtRemain(ms) {
   return { years, days, h, m, s, totalDays, expired: false };
 }
 
+function famAge(birthDateStr, year) {
+  if (!birthDateStr) return null;
+  const by = new Date(birthDateStr + 'T00:00:00').getFullYear();
+  return year - by;
+}
+
+function milestone(age) {
+  if (age === 6) return '小学校入学';
+  if (age === 12) return '中学校入学';
+  if (age === 15) return '高校入学';
+  if (age === 18) return '大学入学';
+  if (age === 22) return '大学卒業';
+  return null;
+}
+
 export default function Home() {
   const [state, setState] = useState(DEFAULT_STATE);
   const [loaded, setLoaded] = useState(false);
@@ -38,12 +113,13 @@ export default function Home() {
   const [dreamFormOpen, setDreamFormOpen] = useState(false);
   const [dreamTitle, setDreamTitle] = useState('');
   const [dreamAge, setDreamAge] = useState('');
+  const [dreamCategory, setDreamCategory] = useState('health');
   const [status, setStatus] = useState('');
 
-  // どのカテゴリー行が開いているか
-  const [openSection, setOpenSection] = useState('lifeClock'); // 'lifeClock' | 'wantTodo' | 'pyramid' | 'timeline' | null
+  const [openSection, setOpenSection] = useState('lifeClock');
   const [showLifeExp, setShowLifeExp] = useState(true);
   const [showTarget, setShowTarget] = useState(true);
+  const [todoDrafts, setTodoDrafts] = useState({}); // { [rowId]: '入力中のテキスト' }
 
   const saveTimer = useRef(null);
 
@@ -51,7 +127,14 @@ export default function Home() {
     fetch('/api/state')
       .then((r) => r.json())
       .then((data) => {
-        setState({ ...DEFAULT_STATE, ...data });
+        setState({
+          ...DEFAULT_STATE,
+          ...data,
+          family: { ...DEFAULT_STATE.family, ...(data.family || {}) },
+          timeline: { ...DEFAULT_STATE.timeline, ...(data.timeline || {}) },
+          pyramidGoals: { ...DEFAULT_STATE.pyramidGoals, ...(data.pyramidGoals || {}) },
+          todosByGoal: { ...DEFAULT_STATE.todosByGoal, ...(data.todosByGoal || {}) },
+        });
         setLoaded(true);
       })
       .catch(() => setLoaded(true));
@@ -103,13 +186,20 @@ export default function Home() {
     setState((s) => ({ ...s, [field]: value }));
   }
 
+  function updateFamily(key, value) {
+    setState((s) => ({ ...s, family: { ...s.family, [key]: value } }));
+  }
+
   function addDream() {
     const title = dreamTitle.trim();
     const age = parseFloat(dreamAge);
     if (!title || !age) return;
     setState((s) => ({
       ...s,
-      dreams: [...s.dreams, { id: Date.now().toString(), title, targetAge: age, achieved: false }],
+      dreams: [
+        ...s.dreams,
+        { id: Date.now().toString(), title, targetAge: age, achieved: false, category: dreamCategory },
+      ],
     }));
     setDreamTitle('');
     setDreamAge('');
@@ -127,11 +217,119 @@ export default function Home() {
     }));
   }
 
-  const sortedDreams = [...state.dreams].sort((a, b) => a.targetAge - b.targetAge);
-
   function toggleSection(name) {
     setOpenSection((s) => (s === name ? null : name));
   }
+
+  function updatePyramidGoal(catKey, value) {
+    setState((s) => ({ ...s, pyramidGoals: { ...s.pyramidGoals, [catKey]: value } }));
+  }
+
+  function addGoalTodo(rowId) {
+    const text = (todoDrafts[rowId] || '').trim();
+    if (!text) return;
+    setState((s) => ({
+      ...s,
+      todosByGoal: {
+        ...s.todosByGoal,
+        [rowId]: [...(s.todosByGoal[rowId] || []), { id: Date.now().toString(), text, done: false }],
+      },
+    }));
+    setTodoDrafts((d) => ({ ...d, [rowId]: '' }));
+  }
+
+  function toggleGoalTodo(rowId, todoId) {
+    setState((s) => ({
+      ...s,
+      todosByGoal: {
+        ...s.todosByGoal,
+        [rowId]: (s.todosByGoal[rowId] || []).map((t) => (t.id === todoId ? { ...t, done: !t.done } : t)),
+      },
+    }));
+  }
+
+  function deleteGoalTodo(rowId, todoId) {
+    setState((s) => ({
+      ...s,
+      todosByGoal: {
+        ...s.todosByGoal,
+        [rowId]: (s.todosByGoal[rowId] || []).filter((t) => t.id !== todoId),
+      },
+    }));
+  }
+
+  // ---- 未来年表：編集用ヘルパー ----
+  function updateTimelineField(catKey, rowId, field, value) {
+    setState((s) => ({
+      ...s,
+      timeline: {
+        ...s.timeline,
+        [catKey]: s.timeline[catKey].map((r) => (r.id === rowId ? { ...r, [field]: value } : r)),
+      },
+    }));
+  }
+
+  function updateTimelineYear(catKey, rowId, idx, value) {
+    setState((s) => ({
+      ...s,
+      timeline: {
+        ...s.timeline,
+        [catKey]: s.timeline[catKey].map((r) => {
+          if (r.id !== rowId) return r;
+          const years = [...r.years];
+          years[idx] = value;
+          return { ...r, years };
+        }),
+      },
+    }));
+  }
+
+  function addTimelineRow(catKey) {
+    setState((s) => ({
+      ...s,
+      timeline: { ...s.timeline, [catKey]: [...s.timeline[catKey], blankRow()] },
+    }));
+  }
+
+  function removeTimelineRow(catKey, rowId) {
+    setState((s) => ({
+      ...s,
+      timeline: { ...s.timeline, [catKey]: s.timeline[catKey].filter((r) => r.id !== rowId) },
+    }));
+  }
+
+  const sortedDreams = [...state.dreams].sort((a, b) => a.targetAge - b.targetAge);
+
+  // 未来年表：列（自分の年齢10年分）
+  const startAge = Math.floor(ageYears);
+  const kenBirthYear = birth.getFullYear();
+  const columns = Array.from({ length: 10 }).map((_, i) => {
+    const age = startAge + i;
+    const year = kenBirthYear + age;
+    return { age, year };
+  });
+
+  const familyRows = [
+    { label: '妻', key: 'wife' },
+    { label: '長女', key: 'daughter1' },
+    { label: '次女', key: 'daughter2' },
+  ];
+
+  // 未来年表の「今年」列（columns[0]）に書かれた目標を自動的に拾う
+  const thisYearGoals = [];
+  TIMELINE_CATEGORIES.forEach((cat) => {
+    (state.timeline[cat.key] || []).forEach((row) => {
+      const goalText = (row.years[0] || '').trim();
+      if (goalText) {
+        thisYearGoals.push({
+          rowId: row.id,
+          categoryLabel: cat.label,
+          rowLabel: row.label,
+          goalText,
+        });
+      }
+    });
+  });
 
   return (
     <div style={styles.body}>
@@ -191,6 +389,34 @@ export default function Home() {
                 style={styles.input}
               />
             </label>
+            <div style={{ height: 6 }} />
+            <label style={styles.fieldLabel}>
+              妻の生年月日
+              <input
+                type="date"
+                value={state.family.wife}
+                onChange={(e) => updateFamily('wife', e.target.value)}
+                style={styles.input}
+              />
+            </label>
+            <label style={styles.fieldLabel}>
+              長女の生年月日
+              <input
+                type="date"
+                value={state.family.daughter1}
+                onChange={(e) => updateFamily('daughter1', e.target.value)}
+                style={styles.input}
+              />
+            </label>
+            <label style={styles.fieldLabel}>
+              次女の生年月日
+              <input
+                type="date"
+                value={state.family.daughter2}
+                onChange={(e) => updateFamily('daughter2', e.target.value)}
+                style={styles.input}
+              />
+            </label>
           </div>
         )}
 
@@ -201,7 +427,7 @@ export default function Home() {
           </div>
           <div style={styles.notebookSub}>手帳は人生をマネジメントし、夢をかなえるツールだ。</div>
 
-          {/* 人生時計セクション */}
+          {/* 人生時計 */}
           <div style={styles.sectionBlock}>
             <div style={styles.sectionHeaderRow} onClick={() => toggleSection('lifeClock')}>
               <div style={styles.sectionHeaderLeft}>
@@ -266,12 +492,6 @@ export default function Home() {
                   </div>
                 )}
 
-                {!showLifeExp && !showTarget && (
-                  <div style={styles.emptyHint}>
-                    表示する項目がありません。設定（⚙）から数値を見直すか、ページを再読み込みしてください。
-                  </div>
-                )}
-
                 <div style={styles.familyRow}>
                   <span>▶ 家族</span>
                   <button style={styles.addSmallBtn} disabled>
@@ -295,7 +515,7 @@ export default function Home() {
             {openSection === 'wantTodo' && (
               <div style={styles.sectionBody}>
                 <div style={styles.labelRow}>
-                  <div style={styles.smallLabel}>年齢に紐づけた夢・目標</div>
+                  <div style={styles.smallLabel}>年齢・カテゴリーに紐づけた夢・目標</div>
                   <button style={styles.addBtn} onClick={() => setDreamFormOpen((v) => !v)}>
                     ＋ 追加
                   </button>
@@ -316,12 +536,23 @@ export default function Home() {
                         placeholder="達成したい年齢"
                         value={dreamAge}
                         onChange={(e) => setDreamAge(e.target.value)}
-                        style={{ ...styles.input, width: 120 }}
+                        style={{ ...styles.input, width: 110 }}
                       />
-                      <button style={styles.saveDreamBtn} onClick={addDream}>
-                        追加する
-                      </button>
+                      <select
+                        value={dreamCategory}
+                        onChange={(e) => setDreamCategory(e.target.value)}
+                        style={{ ...styles.input, flex: 1 }}
+                      >
+                        {Object.entries(CATEGORY_LABELS).map(([k, label]) => (
+                          <option key={k} value={k}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
                     </div>
+                    <button style={styles.saveDreamBtn} onClick={addDream}>
+                      追加する
+                    </button>
                   </div>
                 )}
 
@@ -341,6 +572,9 @@ export default function Home() {
                     <div key={dream.id} style={styles.dream}>
                       <div style={styles.dreamTop}>
                         <div>
+                          <div style={styles.dreamCategoryTag}>
+                            {CATEGORY_LABELS[dream.category] || 'カテゴリー未設定'}
+                          </div>
                           <div
                             style={{
                               ...styles.dreamTitle,
@@ -381,7 +615,7 @@ export default function Home() {
             )}
           </div>
 
-          {/* 夢・人生ピラミッド（準備中） */}
+          {/* 夢・人生ピラミッド */}
           <div style={styles.sectionBlock}>
             <div style={styles.sectionHeaderRow} onClick={() => toggleSection('pyramid')}>
               <div style={styles.sectionHeaderLeft}>
@@ -392,12 +626,50 @@ export default function Home() {
             </div>
             {openSection === 'pyramid' && (
               <div style={styles.sectionBody}>
-                <div style={styles.comingSoon}>準備中。大きな目標 → 中目標 → 今日の行動、という階層で整理する機能を追加予定です。</div>
+                <div style={styles.comingSoon}>
+                  やりたいことリストのカテゴリーに応じて自動で振り分けられます。リストを追加・編集すると、ここも自動で更新されます。
+                </div>
+                <div style={styles.pyramidWrap}>
+                  {PYRAMID_TIERS.map((tierRow) => (
+                    <div
+                      key={tierRow.tier}
+                      style={{ ...styles.pyramidTierRow, gridTemplateColumns: `repeat(${tierRow.keys.length}, 1fr)` }}
+                    >
+                      {tierRow.keys.map((catKey) => {
+                        const items = state.dreams.filter((d) => d.category === catKey);
+                        return (
+                          <div key={catKey} style={styles.pyramidBox}>
+                            <div style={styles.pyramidBoxTitle}>{CATEGORY_LABELS[catKey]}</div>
+                            <div style={styles.pyramidGoalLabel}>究極の目標</div>
+                            <textarea
+                              style={styles.pyramidGoalInput}
+                              placeholder="（空欄でOK）例：老後に何の心配もなく暮らせる経済力を蓄えたい"
+                              value={state.pyramidGoals[catKey] || ''}
+                              onChange={(e) => updatePyramidGoal(catKey, e.target.value)}
+                              rows={2}
+                            />
+                            {items.length === 0 ? (
+                              <div style={styles.pyramidEmpty}>（まだ夢がありません）</div>
+                            ) : (
+                              <ul style={styles.pyramidList}>
+                                {items.map((d) => (
+                                  <li key={d.id} style={styles.pyramidListItem}>
+                                    {d.title}（{d.targetAge}歳）
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
 
-          {/* 未来年表（準備中） */}
+          {/* 未来年表 */}
           <div style={styles.sectionBlock}>
             <div style={styles.sectionHeaderRow} onClick={() => toggleSection('timeline')}>
               <div style={styles.sectionHeaderLeft}>
@@ -408,7 +680,143 @@ export default function Home() {
             </div>
             {openSection === 'timeline' && (
               <div style={styles.sectionBody}>
-                <div style={styles.comingSoon}>準備中。やりたいことリストの内容を年ごとに並べたタイムライン表示を追加予定です。</div>
+                <div style={styles.comingSoon}>
+                  家族の年齢は生年月日から自動計算されます（設定⚙で変更可）。他の項目は自由に書き足してください。
+                </div>
+                <div style={styles.timelineScroll}>
+                  <table style={styles.timelineTable}>
+                    <thead>
+                      <tr>
+                        <th style={styles.thLabel}></th>
+                        <th style={styles.th}>究極の目標</th>
+                        <th style={styles.th}>将来</th>
+                        <th style={styles.th}>今</th>
+                        <th style={styles.th}>差</th>
+                        {columns.map((c) => (
+                          <th key={c.age} style={styles.thYear}>
+                            {c.age}歳
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {/* 家族・環境 */}
+                      <tr>
+                        <td style={styles.tdGroup} colSpan={5 + columns.length}>
+                          家族・環境
+                        </td>
+                      </tr>
+                      {familyRows.map((f) => (
+                        <tr key={f.key}>
+                          <td style={styles.tdLabel}>{f.label}</td>
+                          <td style={styles.td}></td>
+                          <td style={styles.td}></td>
+                          <td style={styles.td}></td>
+                          <td style={styles.td}></td>
+                          {columns.map((c) => {
+                            const age = famAge(state.family[f.key], c.year);
+                            const ms = age !== null ? milestone(age) : null;
+                            return (
+                              <td key={c.age} style={styles.tdYearReadOnly}>
+                                <div>{age !== null ? `${age}歳` : ''}</div>
+                                {ms && <div style={styles.milestoneText}>{ms}</div>}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+
+                      {/* 各カテゴリー */}
+                      {TIMELINE_CATEGORIES.map((cat) => (
+                        <TimelineCategoryRows
+                          key={cat.key}
+                          cat={cat}
+                          rows={state.timeline[cat.key] || []}
+                          columns={columns}
+                          onFieldChange={updateTimelineField}
+                          onYearChange={updateTimelineYear}
+                          onAddRow={addTimelineRow}
+                          onRemoveRow={removeTimelineRow}
+                        />
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 今年の目標から作るToDo */}
+          <div style={styles.sectionBlock}>
+            <div style={styles.sectionHeaderRow} onClick={() => toggleSection('todo')}>
+              <div style={styles.sectionHeaderLeft}>
+                <span style={styles.sectionIcon}>✅</span>
+                <span style={styles.sectionTitle}>今年の目標 ToDo</span>
+                <span style={styles.sectionCaret}>{openSection === 'todo' ? '▲' : '▼'}</span>
+              </div>
+            </div>
+            {openSection === 'todo' && (
+              <div style={styles.sectionBody}>
+                <div style={styles.comingSoon}>
+                  未来年表の「{columns[0]?.age}歳（今年）」列に書いた目標が自動でここに並びます。目標ごとに、そのためのToDoを書き足せます。
+                </div>
+
+                {thisYearGoals.length === 0 && (
+                  <div style={{ fontSize: 13, color: '#8A8A93', padding: '8px 0' }}>
+                    まだ今年の目標がありません。未来年表の「{columns[0]?.age}歳」の列に目標を書き込むと、ここに表示されます。
+                  </div>
+                )}
+
+                {thisYearGoals.map((goal) => {
+                  const items = state.todosByGoal[goal.rowId] || [];
+                  return (
+                    <div key={goal.rowId} style={styles.goalTodoBlock}>
+                      <div style={styles.goalTodoHeader}>
+                        <span style={styles.dreamCategoryTag}>{goal.categoryLabel}</span>
+                        {goal.rowLabel && <span style={styles.goalTodoLabel}>{goal.rowLabel}</span>}
+                      </div>
+                      <div style={styles.goalTodoText}>{goal.goalText}</div>
+
+                      <div style={styles.todoInputRow}>
+                        <input
+                          type="text"
+                          placeholder="このためのToDoを入力"
+                          value={todoDrafts[goal.rowId] || ''}
+                          onChange={(e) => setTodoDrafts((d) => ({ ...d, [goal.rowId]: e.target.value }))}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') addGoalTodo(goal.rowId);
+                          }}
+                          style={{ ...styles.input, flex: 1 }}
+                        />
+                        <button style={styles.saveDreamBtn} onClick={() => addGoalTodo(goal.rowId)}>
+                          追加
+                        </button>
+                      </div>
+
+                      {items.map((t) => (
+                        <div key={t.id} style={styles.todoRow}>
+                          <div style={styles.todoCheckArea} onClick={() => toggleGoalTodo(goal.rowId, t.id)}>
+                            <span style={{ ...styles.todoCheckbox, ...(t.done ? styles.todoCheckboxDone : {}) }}>
+                              {t.done ? '✓' : ''}
+                            </span>
+                            <span
+                              style={{
+                                fontSize: 13,
+                                textDecoration: t.done ? 'line-through' : 'none',
+                                color: t.done ? '#8A8A93' : '#1A1A1E',
+                              }}
+                            >
+                              {t.text}
+                            </span>
+                          </div>
+                          <button style={styles.delBtn} onClick={() => deleteGoalTodo(goal.rowId, t.id)}>
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -434,6 +842,76 @@ export default function Home() {
   );
 }
 
+function TimelineCategoryRows({ cat, rows, columns, onFieldChange, onYearChange, onAddRow, onRemoveRow }) {
+  return (
+    <>
+      <tr>
+        <td style={styles.tdGroup} colSpan={5 + columns.length}>
+          <div style={styles.tdGroupRow}>
+            <span>{cat.label}</span>
+            <button style={styles.addRowBtn} onClick={() => onAddRow(cat.key)}>
+              ＋ 行
+            </button>
+          </div>
+        </td>
+      </tr>
+      {rows.map((row) => (
+        <tr key={row.id}>
+          <td style={styles.tdLabel}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <input
+                style={styles.cellInput}
+                value={row.label}
+                onChange={(e) => onFieldChange(cat.key, row.id, 'label', e.target.value)}
+              />
+              <button style={styles.rowXsmall} onClick={() => onRemoveRow(cat.key, row.id)}>
+                ×
+              </button>
+            </div>
+          </td>
+          <td style={styles.td}>
+            <input
+              style={styles.cellInput}
+              value={row.ultimate}
+              onChange={(e) => onFieldChange(cat.key, row.id, 'ultimate', e.target.value)}
+            />
+          </td>
+          <td style={styles.td}>
+            <input
+              style={styles.cellInput}
+              value={row.future}
+              onChange={(e) => onFieldChange(cat.key, row.id, 'future', e.target.value)}
+            />
+          </td>
+          <td style={styles.td}>
+            <input
+              style={styles.cellInput}
+              value={row.now}
+              onChange={(e) => onFieldChange(cat.key, row.id, 'now', e.target.value)}
+            />
+          </td>
+          <td style={styles.td}>
+            <input
+              style={styles.cellInput}
+              value={row.diff}
+              onChange={(e) => onFieldChange(cat.key, row.id, 'diff', e.target.value)}
+            />
+          </td>
+          {columns.map((c, idx) => (
+            <td key={c.age} style={styles.tdYear}>
+              <input
+                style={styles.yearInput}
+                value={row.years[idx] || ''}
+                onChange={(e) => onYearChange(cat.key, row.id, idx, e.target.value)}
+              />
+            </td>
+          ))}
+        </tr>
+      ))}
+    </>
+  );
+}
+
 const styles = {
   loading: { padding: 40, fontFamily: 'sans-serif', color: '#8A8A93' },
   body: { background: '#FAFAF8', color: '#1A1A1E', fontFamily: "'Noto Sans JP', sans-serif", paddingBottom: 60, minHeight: '100vh' },
@@ -441,7 +919,7 @@ const styles = {
   h1: { fontFamily: "'Zen Kaku Gothic New', sans-serif", fontWeight: 900, fontSize: 22, letterSpacing: '0.02em' },
   sub: { fontSize: 12, color: '#8A8A93', marginTop: 2 },
   gearBtn: { background: 'none', border: '1px solid #EBEAE5', borderRadius: 10, width: 38, height: 38, fontSize: 16, color: '#8A8A93' },
-  main: { maxWidth: 520, margin: '0 auto', padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 14 },
+  main: { maxWidth: 720, margin: '0 auto', padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 14 },
   card: { background: '#fff', border: '1px solid #EBEAE5', borderRadius: 16, padding: 20 },
   label: { fontSize: 12, color: '#8A8A93', fontWeight: 600, letterSpacing: '0.04em', marginBottom: 10 },
   fieldLabel: { fontSize: 12, color: '#8A8A93', fontWeight: 600, display: 'block', marginBottom: 8 },
@@ -469,7 +947,6 @@ const styles = {
   rowX: { background: 'none', border: 'none', color: '#8A8A93', fontSize: 16, lineHeight: 1, cursor: 'pointer' },
   progressBar: { background: '#E7EDFC', height: 6, borderRadius: 99, marginTop: 8, overflow: 'hidden' },
   progressFill: { background: '#2B5FE0', height: '100%', borderRadius: 99, transition: 'width 0.6s ease' },
-  emptyHint: { fontSize: 12, color: '#8A8A93' },
   familyRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13, color: '#8A8A93', paddingTop: 4 },
   addSmallBtn: { background: '#F3F3F1', color: '#8A8A93', border: 'none', borderRadius: 8, padding: '4px 10px', fontSize: 11, fontWeight: 700 },
 
@@ -477,9 +954,10 @@ const styles = {
   smallLabel: { fontSize: 12, color: '#8A8A93', fontWeight: 600 },
   addBtn: { background: '#E7EDFC', color: '#2B5FE0', border: 'none', borderRadius: 10, padding: '6px 12px', fontSize: 12, fontWeight: 700 },
   dreamForm: { display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 6, paddingBottom: 14, borderBottom: '1px solid #EBEAE5' },
-  saveDreamBtn: { background: '#2B5FE0', color: '#fff', border: 'none', borderRadius: 10, padding: '10px', fontSize: 13, fontWeight: 700, width: 110 },
+  saveDreamBtn: { background: '#2B5FE0', color: '#fff', border: 'none', borderRadius: 10, padding: '10px', fontSize: 13, fontWeight: 700 },
   dream: { borderTop: '1px solid #EBEAE5', padding: '14px 0' },
   dreamTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 },
+  dreamCategoryTag: { display: 'inline-block', background: '#F3F3F1', color: '#8A8A93', fontSize: 10, fontWeight: 700, borderRadius: 6, padding: '2px 6px', marginBottom: 4 },
   dreamTitle: { fontWeight: 600, fontSize: 15 },
   dreamSub: { fontSize: 12, color: '#8A8A93', marginTop: 3 },
   delBtn: { background: 'none', border: 'none', color: '#8A8A93', fontSize: 18, lineHeight: 1, cursor: 'pointer' },
@@ -488,6 +966,47 @@ const styles = {
   dreamCheck: { marginTop: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer' },
 
   comingSoon: { fontSize: 12, color: '#8A8A93', lineHeight: 1.6 },
+
+  pyramidWrap: { display: 'flex', flexDirection: 'column', gap: 6 },
+  pyramidTierRow: { display: 'grid', gap: 6 },
+  pyramidBox: { background: '#FAFAF8', border: '1px solid #EBEAE5', borderRadius: 10, padding: 10, minHeight: 60 },
+  pyramidBoxTitle: { fontSize: 11, fontWeight: 700, color: '#2B5FE0', marginBottom: 4 },
+  pyramidEmpty: { fontSize: 11, color: '#8A8A93' },
+  pyramidList: { margin: 0, paddingLeft: 16 },
+  pyramidListItem: { fontSize: 12, marginBottom: 2 },
+  pyramidGoalLabel: { fontSize: 9, color: '#8A8A93', fontWeight: 700, marginTop: 4 },
+  pyramidGoalInput: { width: '100%', border: '1px solid #EBEAE5', borderRadius: 6, padding: '4px 6px', fontSize: 11, fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: 6, resize: 'vertical' },
+
+  todoTabs: { display: 'flex', gap: 6 },
+  todoTab: { background: '#F3F3F1', color: '#8A8A93', border: 'none', borderRadius: 8, padding: '6px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer' },
+  todoTabActive: { background: '#2B5FE0', color: '#fff' },
+  todoInputRow: { display: 'flex', gap: 8 },
+  todoRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #EBEAE5', padding: '8px 0' },
+  todoCheckArea: { display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' },
+  todoCheckbox: { width: 16, height: 16, borderRadius: 4, border: '1px solid #EBEAE5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#fff' },
+  todoCheckboxDone: { background: '#2F9E44', border: '1px solid #2F9E44' },
+  goalTodoBlock: { background: '#FAFAF8', border: '1px solid #EBEAE5', borderRadius: 10, padding: 12, marginBottom: 10 },
+  goalTodoHeader: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 },
+  goalTodoLabel: { fontSize: 12, fontWeight: 700 },
+  goalTodoText: { fontSize: 13, marginBottom: 10 },
+
+  timelineScroll: { overflowX: 'auto', border: '1px solid #EBEAE5', borderRadius: 10 },
+  timelineTable: { borderCollapse: 'collapse', width: '100%', fontSize: 11 },
+  th: { background: '#F3F3F1', padding: '6px 8px', fontSize: 10, fontWeight: 700, borderBottom: '1px solid #EBEAE5', whiteSpace: 'nowrap' },
+  thLabel: { background: '#F3F3F1', padding: '6px 8px', minWidth: 110, borderBottom: '1px solid #EBEAE5' },
+  thYear: { background: '#F3F3F1', padding: '6px 6px', fontSize: 10, fontWeight: 700, borderBottom: '1px solid #EBEAE5', minWidth: 56 },
+  tdGroup: { background: '#1A1A1E', color: '#fff', fontWeight: 700, fontSize: 11, padding: '6px 8px' },
+  tdGroupRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  addRowBtn: { background: '#2B5FE0', color: '#fff', border: 'none', borderRadius: 6, padding: '2px 8px', fontSize: 10, fontWeight: 700, cursor: 'pointer' },
+  tdLabel: { padding: '4px 8px', borderBottom: '1px solid #EBEAE5', minWidth: 110 },
+  td: { padding: '4px 6px', borderBottom: '1px solid #EBEAE5', minWidth: 70 },
+  tdYear: { padding: '2px', borderBottom: '1px solid #EBEAE5', minWidth: 56 },
+  tdYearReadOnly: { padding: '4px 6px', borderBottom: '1px solid #EBEAE5', minWidth: 56, textAlign: 'center', fontSize: 11 },
+  milestoneText: { fontSize: 9, color: '#2B5FE0', fontWeight: 700, marginTop: 2 },
+  cellInput: { border: '1px solid #EBEAE5', borderRadius: 6, padding: '4px 6px', fontSize: 11, fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' },
+  yearInput: { border: '1px solid #EBEAE5', borderRadius: 6, padding: '4px 4px', fontSize: 10, fontFamily: 'inherit', width: '100%', boxSizing: 'border-box', textAlign: 'center' },
+  rowXsmall: { background: 'none', border: 'none', color: '#8A8A93', fontSize: 13, lineHeight: 1, cursor: 'pointer' },
+
   grid: { display: 'grid', gridTemplateColumns: 'repeat(18, 1fr)', gap: 3 },
   yr: { aspectRatio: '1', borderRadius: 2, minWidth: 0 },
 };
