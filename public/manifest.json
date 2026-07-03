@@ -1,0 +1,23 @@
+{
+  "name": "夢がかなうアプリ 〜夢・人生目標〜",
+  "short_name": "夢がかなうアプリ",
+  "description": "残された時間とかなえたい目標を意識して日々過ごすためのアプリ",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FAFAF8",
+  "theme_color": "#2B5FE0",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
