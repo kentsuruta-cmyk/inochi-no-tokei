@@ -171,12 +171,17 @@ export default function Home() {
   const [showLifeExp, setShowLifeExp] = useState(true);
   const [showTarget, setShowTarget] = useState(true);
   const [todoDrafts, setTodoDrafts] = useState({}); // { [rowId]: '入力中のテキスト' }
+  const [loadFailed, setLoadFailed] = useState(false);
 
   const saveTimer = useRef(null);
+  const skipNextSave = useRef(true);
 
   useEffect(() => {
     fetch('/api/state')
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error('load failed');
+        return r.json();
+      })
       .then((data) => {
         setState({
           ...DEFAULT_STATE,
@@ -189,7 +194,12 @@ export default function Home() {
         });
         setLoaded(true);
       })
-      .catch(() => setLoaded(true));
+      .catch(() => {
+        // 読み込みに失敗した場合、空の初期状態を保存し直して
+        // 既存データを上書きしてしまわないよう、保存自体をブロックする
+        setLoadFailed(true);
+        setLoaded(true);
+      });
   }, []);
 
   useEffect(() => {
@@ -198,7 +208,12 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (!loaded) return;
+    if (!loaded || loadFailed) return;
+    // 読み込み直後の1回だけは自動保存をスキップ（読み込んだデータをそのまま書き戻すだけの無駄な保存を防ぐ）
+    if (skipNextSave.current) {
+      skipNextSave.current = false;
+      return;
+    }
     setStatus('保存中…');
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
@@ -212,10 +227,20 @@ export default function Home() {
     }, 800);
     return () => clearTimeout(saveTimer.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state, loaded]);
+  }, [state, loaded, loadFailed]);
 
   if (!loaded) {
     return <div style={styles.loading}>読み込み中…</div>;
+  }
+
+  if (loadFailed) {
+    return (
+      <div style={styles.loading}>
+        データの読み込みに失敗しました。ページを再読み込みしてください。
+        <br />
+        （この状態のまま入力しても保存されません。既存のデータを守るためです。）
+      </div>
+    );
   }
 
   const birth = new Date(state.birthDate + 'T00:00:00');
@@ -771,7 +796,7 @@ export default function Home() {
                             <div style={styles.pyramidGoalLabel}>究極の目標</div>
                             <textarea
                               style={styles.pyramidGoalInput}
-                              placeholder="（空欄でOK）例：老後に何の心配もなく暮らせる経済力を蓄えたい"
+                              placeholder={`（空欄でOK）${TIMELINE_PURPOSE_PLACEHOLDER[catKey] || '例：この分野で実現したいこと'}`}
                               value={state.pyramidGoals[catKey] || ''}
                               onChange={(e) => updatePyramidGoal(catKey, e.target.value)}
                               rows={2}
