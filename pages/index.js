@@ -432,9 +432,14 @@ export default function Home() {
             {Math.floor(ageYears)}歳（生後 {Math.floor(ageMs / 86400000).toLocaleString()}日） ・ {status}
           </div>
         </div>
-        <button style={styles.gearBtn} onClick={() => setSettingsOpen((v) => !v)}>
-          ⚙
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <a href="/print" style={styles.printLinkBtn}>
+            🖨
+          </a>
+          <button style={styles.gearBtn} onClick={() => setSettingsOpen((v) => !v)}>
+            ⚙
+          </button>
+        </div>
       </header>
 
       <main style={styles.main}>
@@ -1071,6 +1076,7 @@ const styles = {
   h1: { fontFamily: "'Zen Kaku Gothic New', sans-serif", fontWeight: 900, fontSize: 22, letterSpacing: '0.02em' },
   sub: { fontSize: 12, color: '#8A8A93', marginTop: 2 },
   gearBtn: { background: 'none', border: '1px solid #EBEAE5', borderRadius: 10, width: 38, height: 38, fontSize: 16, color: '#8A8A93' },
+  printLinkBtn: { background: 'none', border: '1px solid #EBEAE5', borderRadius: 10, width: 38, height: 38, fontSize: 16, color: '#8A8A93', display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' },
   main: { maxWidth: 720, margin: '0 auto', padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 14 },
   card: { background: '#fff', border: '1px solid #EBEAE5', borderRadius: 16, padding: 20 },
   label: { fontSize: 12, color: '#8A8A93', fontWeight: 600, letterSpacing: '0.04em', marginBottom: 10 },
