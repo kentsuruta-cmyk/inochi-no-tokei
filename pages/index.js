@@ -420,6 +420,13 @@ export default function Home() {
     <div style={styles.body}>
       <Head>
         <title>夢がかなうアプリ 〜夢・人生目標〜</title>
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#2B5FE0" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="夢がかなうアプリ" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <link
           href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;600;700&display=swap"
           rel="stylesheet"
@@ -582,13 +589,6 @@ export default function Home() {
                     </div>
                   </div>
                 )}
-
-                <div style={styles.familyRow}>
-                  <span>▶ 家族</span>
-                  <button style={styles.addSmallBtn} disabled>
-                    ＋ 追加
-                  </button>
-                </div>
               </div>
             )}
           </div>
