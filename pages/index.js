@@ -26,6 +26,44 @@ const TIMELINE_CATEGORIES = [
   { key: 'forecast', label: '未来予測', defaultRows: 1 },
 ];
 
+const TIMELINE_PURPOSE_PLACEHOLDER = {
+  health: '例：死ぬまで病院にかからず現役を続ける',
+  knowledge: '例：有名人とも対等に話せる教養を身につけたい',
+  mind: '例：誰からも好かれる人間になりたい',
+  work: '例：自分のビジネススキルや人脈を活かして会社を経営したい',
+  family_private: '例：快適で笑顔の絶えない家庭を築きたい',
+  money: '例：老後に何の心配もなく暮らせる経済力を蓄えたい',
+  forecast: '例：法改正や社会の変化のメモ',
+};
+
+const TIMELINE_PLACEHOLDERS = {
+  health: [
+    { ultimate: '例：禁煙', future: '例：1日1箱の喫煙', now: '例：1週間に1箱', diff: '' },
+    { ultimate: '例：体重◯◯kg', future: '例：体重◯◯kg', now: '例：体重◯◯kg', diff: '例：◯kg' },
+  ],
+  knowledge: [
+    { ultimate: '例：TOEICで◯◯点', future: '例：TOEICで◯◯点', now: '例：◯◯点', diff: '' },
+    { ultimate: '例：本を出版したい', future: '例：文才ゼロ', now: '例：週1冊読む', diff: '' },
+  ],
+  mind: [
+    { ultimate: '例：あまり人に好かれない', future: '例：心理学の勉強中', now: '例：マナーの特訓', diff: '' },
+    { ultimate: '例：人生の師を見つける', future: '例：人生の師がいない', now: '例：交流会に積極参加', diff: '' },
+  ],
+  work: [
+    { ultimate: '例：自分の会社を持ちたい', future: '例：会社経営の知識ゼロ', now: '例：起業家講習に参加中', diff: '' },
+    { ultimate: '例：資格を取りたい', future: '例：経営知識・スキルゼロ', now: '例：法律の勉強中', diff: '' },
+    { ultimate: '例：人脈◯◯人', future: '例：人脈◯人', now: '例：月1回交流会参加', diff: '' },
+  ],
+  family_private: [
+    { ultimate: '例：一戸建て住宅を購入', future: '例：賃貸アパート暮らし', now: '例：住宅購入資金を貯金中', diff: '' },
+  ],
+  money: [
+    { ultimate: '例：◯◯万円の資産を持ちたい', future: '例：知識も金も土地もない', now: '例：貯金◯◯万円', diff: '' },
+    { ultimate: '例：マンションのオーナーになりたい', future: '', now: '', diff: '' },
+  ],
+  forecast: [{ ultimate: '', future: '', now: '', diff: '例：法改正や社会の変化のメモ' }],
+};
+
 function blankRow() {
   return {
     id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
@@ -57,6 +95,15 @@ const DEFAULT_STATE = {
     daughter2: '2015-08-18',
   },
   timeline: defaultTimeline(),
+  timelinePurpose: {
+    health: '',
+    knowledge: '',
+    mind: '',
+    work: '',
+    family_private: '',
+    money: '',
+    forecast: '',
+  },
   pyramidGoals: {
     money: '',
     family_private: '',
@@ -114,6 +161,10 @@ export default function Home() {
   const [dreamTitle, setDreamTitle] = useState('');
   const [dreamAge, setDreamAge] = useState('');
   const [dreamCategory, setDreamCategory] = useState('health');
+  const [editingDreamId, setEditingDreamId] = useState(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editAge, setEditAge] = useState('');
+  const [editCategory, setEditCategory] = useState('health');
   const [status, setStatus] = useState('');
 
   const [openSection, setOpenSection] = useState('lifeClock');
@@ -132,6 +183,7 @@ export default function Home() {
           ...data,
           family: { ...DEFAULT_STATE.family, ...(data.family || {}) },
           timeline: { ...DEFAULT_STATE.timeline, ...(data.timeline || {}) },
+          timelinePurpose: { ...DEFAULT_STATE.timelinePurpose, ...(data.timelinePurpose || {}) },
           pyramidGoals: { ...DEFAULT_STATE.pyramidGoals, ...(data.pyramidGoals || {}) },
           todosByGoal: { ...DEFAULT_STATE.todosByGoal, ...(data.todosByGoal || {}) },
         });
@@ -210,6 +262,30 @@ export default function Home() {
     setState((s) => ({ ...s, dreams: s.dreams.filter((d) => d.id !== id) }));
   }
 
+  function startEditDream(dream) {
+    setEditingDreamId(dream.id);
+    setEditTitle(dream.title);
+    setEditAge(String(dream.targetAge));
+    setEditCategory(dream.category || 'health');
+  }
+
+  function cancelEditDream() {
+    setEditingDreamId(null);
+  }
+
+  function saveEditDream() {
+    const title = editTitle.trim();
+    const age = parseFloat(editAge);
+    if (!title || !age) return;
+    setState((s) => ({
+      ...s,
+      dreams: s.dreams.map((d) =>
+        d.id === editingDreamId ? { ...d, title, targetAge: age, category: editCategory } : d
+      ),
+    }));
+    setEditingDreamId(null);
+  }
+
   function toggleDream(id) {
     setState((s) => ({
       ...s,
@@ -258,6 +334,10 @@ export default function Home() {
     }));
   }
 
+  function updateTimelinePurpose(catKey, value) {
+    setState((s) => ({ ...s, timelinePurpose: { ...s.timelinePurpose, [catKey]: value } }));
+  }
+
   // ---- 未来年表：編集用ヘルパー ----
   function updateTimelineField(catKey, rowId, field, value) {
     setState((s) => ({
@@ -301,11 +381,11 @@ export default function Home() {
   const sortedDreams = [...state.dreams].sort((a, b) => a.targetAge - b.targetAge);
 
   // 未来年表：列（自分の年齢10年分）
-  const startAge = Math.floor(ageYears);
   const kenBirthYear = birth.getFullYear();
+  const currentCalendarYear = now.getFullYear();
   const columns = Array.from({ length: 10 }).map((_, i) => {
-    const age = startAge + i;
-    const year = kenBirthYear + age;
+    const year = currentCalendarYear + i;
+    const age = year - kenBirthYear; // その年に自分が迎える年齢
     return { age, year };
   });
 
@@ -568,6 +648,49 @@ export default function Home() {
                   const dR = fmtRemain(dRemainMs);
                   const dTotal = dTargetDate - birth;
                   const dPct = Math.min(100, Math.max(0, (ageMs / dTotal) * 100));
+
+                  if (editingDreamId === dream.id) {
+                    return (
+                      <div key={dream.id} style={styles.dream}>
+                        <div style={styles.dreamForm}>
+                          <input
+                            type="text"
+                            value={editTitle}
+                            onChange={(e) => setEditTitle(e.target.value)}
+                            style={styles.input}
+                          />
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <input
+                              type="number"
+                              value={editAge}
+                              onChange={(e) => setEditAge(e.target.value)}
+                              style={{ ...styles.input, width: 110 }}
+                            />
+                            <select
+                              value={editCategory}
+                              onChange={(e) => setEditCategory(e.target.value)}
+                              style={{ ...styles.input, flex: 1 }}
+                            >
+                              {Object.entries(CATEGORY_LABELS).map(([k, label]) => (
+                                <option key={k} value={k}>
+                                  {label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <button style={styles.saveDreamBtn} onClick={saveEditDream}>
+                              保存する
+                            </button>
+                            <button style={styles.cancelBtn} onClick={cancelEditDream}>
+                              キャンセル
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+
                   return (
                     <div key={dream.id} style={styles.dream}>
                       <div style={styles.dreamTop}>
@@ -589,9 +712,14 @@ export default function Home() {
                             {dR.expired ? '期限到達' : `あと${dR.years}年${dR.days}日`}
                           </div>
                         </div>
-                        <button style={styles.delBtn} onClick={() => deleteDream(dream.id)}>
-                          ×
-                        </button>
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          <button style={styles.editBtn} onClick={() => startEditDream(dream)}>
+                            ✎
+                          </button>
+                          <button style={styles.delBtn} onClick={() => deleteDream(dream.id)}>
+                            ×
+                          </button>
+                        </div>
                       </div>
                       <div style={styles.dreamProgressBar}>
                         <div
@@ -733,6 +861,8 @@ export default function Home() {
                           cat={cat}
                           rows={state.timeline[cat.key] || []}
                           columns={columns}
+                          purpose={state.timelinePurpose[cat.key] || ''}
+                          onPurposeChange={updateTimelinePurpose}
                           onFieldChange={updateTimelineField}
                           onYearChange={updateTimelineYear}
                           onAddRow={addTimelineRow}
@@ -842,7 +972,8 @@ export default function Home() {
   );
 }
 
-function TimelineCategoryRows({ cat, rows, columns, onFieldChange, onYearChange, onAddRow, onRemoveRow }) {
+function TimelineCategoryRows({ cat, rows, columns, purpose, onPurposeChange, onFieldChange, onYearChange, onAddRow, onRemoveRow }) {
+  const placeholders = TIMELINE_PLACEHOLDERS[cat.key] || [];
   return (
     <>
       <tr>
@@ -855,59 +986,69 @@ function TimelineCategoryRows({ cat, rows, columns, onFieldChange, onYearChange,
           </div>
         </td>
       </tr>
-      {rows.map((row) => (
-        <tr key={row.id}>
-          <td style={styles.tdLabel}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <input
-                style={styles.cellInput}
-                value={row.label}
-                onChange={(e) => onFieldChange(cat.key, row.id, 'label', e.target.value)}
-              />
+      <tr>
+        <td style={styles.tdPurpose} colSpan={5 + columns.length}>
+          <input
+            style={styles.cellInput}
+            placeholder={TIMELINE_PURPOSE_PLACEHOLDER[cat.key] || 'このカテゴリーで実現したいこと'}
+            value={purpose}
+            onChange={(e) => onPurposeChange(cat.key, e.target.value)}
+          />
+        </td>
+      </tr>
+      {rows.map((row, i) => {
+        const ph = placeholders[i] || { ultimate: '', future: '', now: '', diff: '' };
+        return (
+          <tr key={row.id}>
+            <td style={styles.tdDelete}>
               <button style={styles.rowXsmall} onClick={() => onRemoveRow(cat.key, row.id)}>
                 ×
               </button>
-            </div>
-          </td>
-          <td style={styles.td}>
-            <input
-              style={styles.cellInput}
-              value={row.ultimate}
-              onChange={(e) => onFieldChange(cat.key, row.id, 'ultimate', e.target.value)}
-            />
-          </td>
-          <td style={styles.td}>
-            <input
-              style={styles.cellInput}
-              value={row.future}
-              onChange={(e) => onFieldChange(cat.key, row.id, 'future', e.target.value)}
-            />
-          </td>
-          <td style={styles.td}>
-            <input
-              style={styles.cellInput}
-              value={row.now}
-              onChange={(e) => onFieldChange(cat.key, row.id, 'now', e.target.value)}
-            />
-          </td>
-          <td style={styles.td}>
-            <input
-              style={styles.cellInput}
-              value={row.diff}
-              onChange={(e) => onFieldChange(cat.key, row.id, 'diff', e.target.value)}
-            />
-          </td>
-          {columns.map((c, idx) => (
-            <td key={c.age} style={styles.tdYear}>
+            </td>
+            <td style={styles.td}>
               <input
-                style={styles.yearInput}
-                value={row.years[idx] || ''}
-                onChange={(e) => onYearChange(cat.key, row.id, idx, e.target.value)}
+                style={styles.cellInput}
+                placeholder={ph.ultimate}
+                value={row.ultimate}
+                onChange={(e) => onFieldChange(cat.key, row.id, 'ultimate', e.target.value)}
               />
             </td>
-          ))}
-        </tr>
-      ))}
+            <td style={styles.td}>
+              <input
+                style={styles.cellInput}
+                placeholder={ph.future}
+                value={row.future}
+                onChange={(e) => onFieldChange(cat.key, row.id, 'future', e.target.value)}
+              />
+            </td>
+            <td style={styles.td}>
+              <input
+                style={styles.cellInput}
+                placeholder={ph.now}
+                value={row.now}
+                onChange={(e) => onFieldChange(cat.key, row.id, 'now', e.target.value)}
+              />
+            </td>
+            <td style={styles.td}>
+              <input
+                style={styles.cellInput}
+                placeholder={ph.diff}
+                value={row.diff}
+                onChange={(e) => onFieldChange(cat.key, row.id, 'diff', e.target.value)}
+              />
+            </td>
+            {columns.map((c, idx) => (
+              <td key={c.age} style={styles.tdYear}>
+                <input
+                  style={styles.yearInput}
+                  value={row.years[idx] || ''}
+                  onChange={(e) => onYearChange(cat.key, row.id, idx, e.target.value)}
+                />
+              </td>
+            ))}
+          </tr>
+        );
+      })}
     </>
   );
 }
@@ -961,6 +1102,8 @@ const styles = {
   dreamTitle: { fontWeight: 600, fontSize: 15 },
   dreamSub: { fontSize: 12, color: '#8A8A93', marginTop: 3 },
   delBtn: { background: 'none', border: 'none', color: '#8A8A93', fontSize: 18, lineHeight: 1, cursor: 'pointer' },
+  editBtn: { background: '#F3F3F1', border: 'none', borderRadius: 6, color: '#2B5FE0', fontSize: 13, lineHeight: 1, cursor: 'pointer', padding: '4px 8px' },
+  cancelBtn: { background: '#F3F3F1', color: '#8A8A93', border: 'none', borderRadius: 10, padding: '10px', fontSize: 13, fontWeight: 700 },
   dreamProgressBar: { background: '#E7EDFC', height: 6, borderRadius: 99, marginTop: 10, overflow: 'hidden' },
   dreamProgressFill: { height: '100%' },
   dreamCheck: { marginTop: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer' },
@@ -997,6 +1140,8 @@ const styles = {
   thYear: { background: '#F3F3F1', padding: '6px 6px', fontSize: 10, fontWeight: 700, borderBottom: '1px solid #EBEAE5', minWidth: 56 },
   tdGroup: { background: '#1A1A1E', color: '#fff', fontWeight: 700, fontSize: 11, padding: '6px 8px' },
   tdGroupRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  tdPurpose: { background: '#F3F3F1', padding: '4px 8px', borderBottom: '1px solid #EBEAE5' },
+  tdDelete: { padding: '4px 4px', borderBottom: '1px solid #EBEAE5', textAlign: 'center', width: 24 },
   addRowBtn: { background: '#2B5FE0', color: '#fff', border: 'none', borderRadius: 6, padding: '2px 8px', fontSize: 10, fontWeight: 700, cursor: 'pointer' },
   tdLabel: { padding: '4px 8px', borderBottom: '1px solid #EBEAE5', minWidth: 110 },
   td: { padding: '4px 6px', borderBottom: '1px solid #EBEAE5', minWidth: 70 },
